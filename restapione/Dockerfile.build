@@ -1,0 +1,23 @@
+FROM mcr.microsoft.com/dotnet/aspnet:3.1 AS base
+WORKDIR /app
+EXPOSE 80
+
+FROM mcr.microsoft.com/dotnet/sdk:3.1 AS build
+WORKDIR /src
+COPY ["Code/restapione.Api/restapione.Api.csproj", "Code/restapione.Api/"]
+COPY ["Code/restapione.Business/restapione.Business.csproj", "Code/restapione.Business/"]
+COPY ["Code/restapione.Data/restapione.Data.csproj", "Code/restapione.Data/"]
+COPY ["Code/restapione.Entities/restapione.Entities.csproj", "Code/restapione.Entities/"]
+COPY ["Code/restapione.Test.Api/restapione.Test.Api.csproj", "Code/restapione.Test.Api/"]
+COPY ["Code/restapione.Test.Business/restapione.Test.Business.csproj", "Code/restapione.Test.Business/"]
+RUN dotnet restore "Code/restapione.Api/restapione.Api.csproj"
+COPY . .
+WORKDIR "/src/Code/restapione.Api"
+RUN dotnet build "restapione.Api.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "restapione.Api.csproj" -c Release -o /app/publish
+
+WORKDIR /src
+RUN dotnet test --results-directory /testresults --logger "trx;LogFileName=testresults.Api.trx" /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=/testresults/coverage/ /p:MergeWith=/testresults/coverage/coverage.json "Code/restapione.Test.Api/restapione.Test.Api.csproj"
+RUN dotnet test --results-directory /testresults --logger "trx;LogFileName=testresults.Api.trx" /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=/testresults/coverage/ /p:MergeWith=/testresults/coverage/coverage.json "Code/restapione.Test.Business/restapione.Test.Business.csproj"
