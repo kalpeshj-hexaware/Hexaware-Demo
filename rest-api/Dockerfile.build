@@ -1,0 +1,23 @@
+FROM mcr.microsoft.com/dotnet/aspnet:3.1 AS base
+WORKDIR /app
+EXPOSE 80
+
+FROM mcr.microsoft.com/dotnet/sdk:3.1 AS build
+WORKDIR /src
+COPY ["Code/restapi.Api/restapi.Api.csproj", "Code/restapi.Api/"]
+COPY ["Code/restapi.Business/restapi.Business.csproj", "Code/restapi.Business/"]
+COPY ["Code/restapi.Data/restapi.Data.csproj", "Code/restapi.Data/"]
+COPY ["Code/restapi.Entities/restapi.Entities.csproj", "Code/restapi.Entities/"]
+COPY ["Code/restapi.Test.Api/restapi.Test.Api.csproj", "Code/restapi.Test.Api/"]
+COPY ["Code/restapi.Test.Business/restapi.Test.Business.csproj", "Code/restapi.Test.Business/"]
+RUN dotnet restore "Code/restapi.Api/restapi.Api.csproj"
+COPY . .
+WORKDIR "/src/Code/restapi.Api"
+RUN dotnet build "restapi.Api.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "restapi.Api.csproj" -c Release -o /app/publish
+
+WORKDIR /src
+RUN dotnet test --results-directory /testresults --logger "trx;LogFileName=testresults.Api.trx" /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=/testresults/coverage/ /p:MergeWith=/testresults/coverage/coverage.json "Code/restapi.Test.Api/restapi.Test.Api.csproj"
+RUN dotnet test --results-directory /testresults --logger "trx;LogFileName=testresults.Api.trx" /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=/testresults/coverage/ /p:MergeWith=/testresults/coverage/coverage.json "Code/restapi.Test.Business/restapi.Test.Business.csproj"
